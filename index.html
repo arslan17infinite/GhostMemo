@@ -1,0 +1,288 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GhostMemo</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 30px 16px;
+      min-height: 100vh;
+      box-sizing: border-box;
+      background: #0b0b16;
+      color: #f4f0ff;
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    main {
+      width: 100%;
+      max-width: 600px;
+      padding: 28px;
+      box-sizing: border-box;
+      background: #17172b;
+      border: 1px solid #62528c;
+      border-radius: 18px;
+    }
+
+    .ghost {
+      text-align: center;
+      font-size: 54px;
+    }
+
+    h1 {
+      text-align: center;
+      color: #c5b5ff;
+    }
+
+    p {
+      text-align: center;
+      color: #c3bfd9;
+      line-height: 1.6;
+    }
+
+    label {
+      display: block;
+      margin: 22px 0 8px;
+    }
+
+    input, textarea {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 12px;
+      border: 1px solid #514b70;
+      border-radius: 8px;
+      background: #0c0c19;
+      color: white;
+      font: inherit;
+    }
+
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    button {
+      width: 100%;
+      margin-top: 16px;
+      padding: 13px;
+      border: 0;
+      border-radius: 8px;
+      background: #b7a3ff;
+      color: #171127;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    #result {
+      margin-top: 20px;
+      padding: 16px;
+      border-radius: 8px;
+      background: #262441;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      line-height: 1.6;
+    }
+
+    footer {
+      margin-top: 24px;
+      color: #aaa3c7;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="ghost">👻</div>
+    <h1>GhostMemo</h1>
+    <p>Every memory leaves a trace.<br>
+      Preserve your story beyond time.</p>
+
+    <form id="memoryForm">
+      <label for="title">Memory title</label>
+      <input id="title" placeholder="A night to remember" required>
+
+      <label for="memory">Your memory</label>
+      <textarea id="memory" placeholder="Write your story here..." required></textarea>
+
+      <button type="submit">Awaken My Memory ✨</button>
+    </form>
+
+    <div id="result" hidden></div>
+
+    <footer>A little piece of yesterday, preserved for tomorrow.</footer>
+  </main>
+
+  
+<script>
+  const form = document.getElementById("memoryForm");
+  const result = document.getElementById("result");
+  const titleInput = document.getElementById("title");
+  const memoryInput = document.getElementById("memory");
+
+  const storageKey = "ghostmemo-memories";
+  let memories = [];
+
+  try {
+    memories = JSON.parse(localStorage.getItem(storageKey)) || [];
+    if (!Array.isArray(memories)) memories = [];
+  } catch (error) {
+    memories = [];
+  }
+
+  const archive = document.createElement("section");
+  archive.innerHTML = `
+    <h2 style="color:#c5b5ff; margin-top:28px">
+      Your Memory Archive 📚
+    </h2>
+    <div id="savedMemories"></div>
+  `;
+  form.after(archive);
+
+  const savedMemories = document.getElementById("savedMemories");
+
+  function renderMemories() {
+    savedMemories.replaceChildren();
+
+    if (memories.length === 0) {
+      const empty = document.createElement("p");
+      empty.textContent = "Your archive is empty. Save your first memory!";
+      savedMemories.appendChild(empty);
+      return;
+    }
+
+    memories.forEach(function(memory, index) {
+      const card = document.createElement("article");
+      card.style.cssText =
+        "background:#262441;padding:16px;margin:12px 0;border-radius:10px";
+
+      const heading = document.createElement("h3");
+      heading.textContent = "👻 " + memory.title;
+      heading.style.color = "#c5b5ff";
+
+      const story = document.createElement("p");
+      story.textContent = memory.text;
+      story.style.textAlign = "left";
+
+      const date = document.createElement("small");
+      date.textContent = "Saved: " + memory.date;
+
+      const deleteButton = document.createElement("button");
+      deleteButton.textContent = "Delete memory";
+      deleteButton.style.background = "#e6a4b4";
+
+      deleteButton.addEventListener("click", function() {
+        const previous = memories.slice();
+        memories.splice(index, 1);
+
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(memories));
+          renderMemories();
+        } catch (error) {
+          memories = previous;
+          alert("Could not update storage. Please try again.");
+        }
+      });
+
+            const storytellerButton = document.createElement("button");
+      storytellerButton.textContent = "Tell this memory as a ghost story 👻";
+      storytellerButton.style.background = "#b7a3ff";
+
+      const ghostStory = document.createElement("p");
+      ghostStory.hidden = true;
+      ghostStory.style.cssText =
+        "background:#17172b;padding:12px;border-radius:8px;text-align:left;white-space:pre-wrap;line-height:1.6";
+
+      storytellerButton.addEventListener("click", async function() {
+        storytellerButton.disabled = true;
+        storytellerButton.textContent = "The ghost is remembering...";
+        ghostStory.hidden = false;
+        ghostStory.textContent = "The ghost is writing...";
+
+        try {
+          const response = await fetch("http://127.0.0.1:11434/api/generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model: "gemma3:1b",
+              prompt:
+                "Write a short (about 120 words), mysterious fictional retelling inspired by this memory. Keep all real people, places, and events unchanged; use atmosphere instead of adding new facts. Keep the original facts and people respectful. Do not invent major events.\n\nTitle: " +
+                memory.title +
+                "\nMemory: " +
+                memory.text,
+              stream: false
+            })
+          });
+
+          if (!response.ok) {
+            throw new Error("Ollama returned HTTP " + response.status);
+          }
+
+          const data = await response.json();
+          ghostStory.textContent =
+            "AI-generated fictional retelling (may include invented details):\n\n" + (data.response || "The ghost did not return a story.");
+        } catch (error) {
+          ghostStory.textContent =
+            "I could not reach Ollama. Check that Ollama is open, then try again.";
+          console.error("GhostMemo storyteller error:", error);
+        } finally {
+          storytellerButton.disabled = false;
+          storytellerButton.textContent =
+            "Tell this memory as a ghost story 👻";
+        }
+      });
+
+      card.append(
+        heading,
+        story,
+        date,
+        storytellerButton,
+        ghostStory,
+        deleteButton
+      );
+      savedMemories.appendChild(card);
+    });
+  }
+
+  form.addEventListener("submit", function(event) {
+    event.preventDefault();
+
+    const title = titleInput.value.trim();
+    const text = memoryInput.value.trim();
+
+    if (!title || !text) return;
+
+    const newMemory = {
+      title: title,
+      text: text,
+      date: new Date().toLocaleString()
+    };
+
+    memories.unshift(newMemory);
+
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(memories));
+    } catch (error) {
+      memories.shift();
+      alert("Could not save your memory. Browser storage may be full.");
+      return;
+    }
+
+    result.hidden = false;
+    result.textContent =
+      "👻 Your memory has been preserved!\n\n" +
+      title + "\n\n" + text;
+
+    form.reset();
+    renderMemories();
+  });
+
+  renderMemories();
+</script> 
+</body>
+</html>
